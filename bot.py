@@ -1,7 +1,7 @@
 import os
 import logging
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
-from telegram.ext import ApplicationBuilder, CommandHandler, CallbackQueryHandler, ContextTypes
+from telegram.ext import ApplicationBuilder, CommandHandler, CallbackQueryHandler, ContextTypes, JobQueue
 import ccxt
 import asyncio
 
@@ -100,17 +100,15 @@ async def pnl(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 
 # -------------------- BACKGROUND ALERT --------------------
-async def price_alert_job(app):
+async def price_alert_job(context):
     global ALERT_ON
-    while True:
-        if ALERT_ON:
-            try:
-                ticker = exchange.fetch_ticker("BTC/USDT")
-                price = ticker["last"]
-                await app.bot.send_message(YOUR_TELEGRAM_ID, f"⏰ BTC Price Alert: {price}")
-            except Exception as e:
-                logging.error("Alert error: %s", e)
-        await asyncio.sleep(3600)  # 1 hour interval
+    if ALERT_ON:
+        try:
+            ticker = exchange.fetch_ticker("BTC/USDT")
+            price = ticker["last"]
+            await context.bot.send_message(YOUR_TELEGRAM_ID, f"⏰ BTC Price Alert: {price}")
+        except Exception as e:
+            logging.error("Alert error: %s", e)
 
 
 # -------------------- MAIN --------------------
@@ -126,10 +124,10 @@ async def main():
     # Inline buttons
     app.add_handler(CallbackQueryHandler(button_handler))
 
-    # Start background alert task
-    app.job_queue.run_repeating(lambda _: price_alert_job(app), interval=3600, first=10)
+    # Background alerts using job queue
+    app.job_queue.run_repeating(price_alert_job, interval=3600, first=10)
 
-    # Start polling
+    # Start bot
     await app.run_polling()
 
 
