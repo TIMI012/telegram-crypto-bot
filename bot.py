@@ -9,7 +9,7 @@ logging.basicConfig(level=logging.INFO)
 
 API_KEY = os.getenv("ULuLlnqyzfVPZOL1UrJdSDZYpgSII4AdoQ0p4rBa2hLhbuagHqiw9VMOH7EAPt6E")
 API_SECRET = os.getenv("vNVYGVoPg9jyEuori5EBLy1l7T5ZmIZGAtWkYTw9wjRxsivpvgi6kNwWTQrjiRZf")
-TELEGRAM_BOT_TOKEN = os.getenv("TELEGRAM_BOT_TOKEN")
+TELEGRAM_BOT_TOKEN = os.getenv("8310267297:AAHAIaL40P6ppLCBzI5BFgNuCKuGgQ81WO0")
 
 exchange = ccxt.binance({
     "apiKey": API_KEY,
