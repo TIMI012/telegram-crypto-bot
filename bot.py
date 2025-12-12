@@ -7,8 +7,8 @@ import ccxt
 
 logging.basicConfig(level=logging.INFO)
 
-API_KEY = os.getenv("BINANCE_API_KEY")
-API_SECRET = os.getenv("BINANCE_API_SECRET")
+API_KEY = os.getenv("ULuLlnqyzfVPZOL1UrJdSDZYpgSII4AdoQ0p4rBa2hLhbuagHqiw9VMOH7EAPt6E")
+API_SECRET = os.getenv("vNVYGVoPg9jyEuori5EBLy1l7T5ZmIZGAtWkYTw9wjRxsivpvgi6kNwWTQrjiRZf")
 TELEGRAM_BOT_TOKEN = os.getenv("TELEGRAM_BOT_TOKEN")
 
 exchange = ccxt.binance({
