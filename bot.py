@@ -1,40 +1,64 @@
 import os
-import ccxt
+import logging
 from telegram import Update
 from telegram.ext import ApplicationBuilder, CommandHandler, ContextTypes
+import ccxt
+import asyncio
 
-# ===============================
-# ENVIRONMENT VARIABLES
-# ===============================
+logging.basicConfig(level=logging.INFO)
+
+# Load environment variables
+API_KEY = os.getenv("BINANCE_API_KEY")
+API_SECRET = os.getenv("BINANCE_API_SECRET")
 TELEGRAM_BOT_TOKEN = os.getenv("TELEGRAM_BOT_TOKEN")
-API_KEY = os.getenv("API_KEY")
-API_SECRET = os.getenv("API_SECRET")
 
-# ===============================
-# EXCHANGE (CCXT)
-# ===============================
+# Debug print to verify environment variables
+print("Loaded TELEGRAM_BOT_TOKEN:", TELEGRAM_BOT_TOKEN)
+
+# Binance testnet setup
 exchange = ccxt.binance({
     "apiKey": API_KEY,
     "secret": API_SECRET,
-    "enableRateLimit": True,
+    "options": {"defaultType": "future"},
 })
+exchange.set_sandbox_mode(True)
 
-# ===============================
-# /start COMMAND
-# ===============================
+
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    await update.message.reply_text(
-        "Bot is running!\n\n"
-        "Commands:\n"
-        "/price BTC/USDT\n"
-        "/buy BTC/USDT 10\n"
-        "/sell BTC/USDT 10"
-    )
+    await update.message.reply_text("Bot is live! Use /price BTC/USDT to check price.")
 
-# ===============================
-# /price COMMAND
-# ===============================
+
 async def price(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    symbol = (context.args[0] if context.args else "BTC/USDT").upper()
+    ticker = exchange.fetch_ticker(symbol)
+    await update.message.reply_text(f"Price of {symbol}: {ticker['last']}")
+
+
+async def buy(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    symbol = "BTC/USDT"
+    order = exchange.create_market_buy_order(symbol, 0.001)
+    await update.message.reply_text(f"Bought: {order}")
+
+
+async def sell(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    symbol = "BTC/USDT"
+    order = exchange.create_market_sell_order(symbol, 0.001)
+    await update.message.reply_text(f"Sold: {order}")
+
+
+async def main():
+    app = ApplicationBuilder().token(TELEGRAM_BOT_TOKEN).build()
+
+    app.add_handler(CommandHandler("start", start))
+    app.add_handler(CommandHandler("price", price))
+    app.add_handler(CommandHandler("buy", buy))
+    app.add_handler(CommandHandler("sell", sell))
+
+    await app.run_polling()
+
+
+if __name__ == "__main__":
+    asyncio.run(main())async def price(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if len(context.args) < 1:
         await update.message.reply_text("Usage: /price BTC/USDT")
         return
