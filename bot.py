@@ -36,6 +36,7 @@ async def sell(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.message.reply_text(f"Sold: {order}")
 
 async def main():
+    print("Loaded token:", TELEGRAM_BOT_TOKEN)  # Debug line
     app = ApplicationBuilder().token(TELEGRAM_BOT_TOKEN).build()
 
     app.add_handler(CommandHandler("start", start))
