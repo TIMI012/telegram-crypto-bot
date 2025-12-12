@@ -1,18 +1,12 @@
 import os
 import logging
-import asyncio
-import ccxt
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
-from telegram.ext import (
-    ApplicationBuilder,
-    CommandHandler,
-    CallbackQueryHandler,
-    ContextTypes,
-)
+from telegram.ext import Application, CommandHandler, CallbackQueryHandler, ContextTypes
+import ccxt
+import asyncio
 
 logging.basicConfig(level=logging.INFO)
 
-# ---------- ENV ----------
 API_KEY = os.getenv("BINANCE_API_KEY")
 API_SECRET = os.getenv("BINANCE_API_SECRET")
 TELEGRAM_BOT_TOKEN = os.getenv("TELEGRAM_BOT_TOKEN")
@@ -25,8 +19,6 @@ exchange = ccxt.binance({
 
 alert_subscribers = set()
 
-
-# ---------- START ----------
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     keyboard = [
         [InlineKeyboardButton("📈 Price", callback_data="price_menu")],
@@ -35,6 +27,57 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
         [InlineKeyboardButton("💰 Balance", callback_data="balance")],
         [InlineKeyboardButton("📊 PnL", callback_data="pnl")],
         [InlineKeyboardButton("⏰ Toggle Alerts", callback_data="toggle_alerts")]
+    ]
+    await update.message.reply_text("Choose an option:", reply_markup=InlineKeyboardMarkup(keyboard))
+
+async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    query = update.callback_query
+    data = query.data
+    chat_id = query.message.chat_id
+
+    await query.answer()
+
+    if data == "toggle_alerts":
+        if chat_id in alert_subscribers:
+            alert_subscribers.remove(chat_id)
+            await query.edit_message_text("🔕 Alerts turned OFF")
+        else:
+            alert_subscribers.add(chat_id)
+            await query.edit_message_text("🔔 Alerts turned ON")
+        return
+
+    if data == "balance":
+        balance = exchange.fetch_balance()
+        usdt = balance['total'].get('USDT', 0)
+        await query.edit_message_text(f"💰 Balance: {usdt} USDT")
+        return
+
+async def run_alerts(app):
+    while True:
+        if alert_subscribers:
+            ticker = exchange.fetch_ticker("BTC/USDT")
+            price = ticker["last"]
+            for chat_id in list(alert_subscribers):
+                try:
+                    await app.bot.send_message(chat_id, f"⏰ BTC Price: {price}")
+                except:
+                    pass
+        await asyncio.sleep(3600)  # every 1 hour
+
+async def main():
+    app = Application.builder().token(TELEGRAM_BOT_TOKEN).build()
+
+    app.add_handler(CommandHandler("start", start))
+    app.add_handler(CallbackQueryHandler(button_handler))
+
+    # run alerts in background
+    app.job_queue.run_once(lambda *_: asyncio.create_task(run_alerts(app)), 1)
+
+    await app.run_polling(close_loop=False)
+
+if __name__ == "__main__":
+    asyncio.get_event_loop().create_task(main())
+    asyncio.get_event_loop().run_forever()        [InlineKeyboardButton("⏰ Toggle Alerts", callback_data="toggle_alerts")]
     ]
     await update.message.reply_text("Choose an option:", reply_markup=InlineKeyboardMarkup(keyboard))
 
