@@ -1,40 +1,99 @@
 import os
-import logging
+import ccxt
 from telegram import Update
 from telegram.ext import ApplicationBuilder, CommandHandler, ContextTypes
-import ccxt
 
-# Logging
-logging.basicConfig(level=logging.INFO)
-
-# Load environment variables
+# ===============================
+# ENVIRONMENT VARIABLES
+# ===============================
 TELEGRAM_BOT_TOKEN = os.getenv("TELEGRAM_BOT_TOKEN")
-API_KEY = os.getenv("BINANCE_API_KEY")
-API_SECRET = os.getenv("BINANCE_API_SECRET")
+API_KEY = os.getenv("API_KEY")
+API_SECRET = os.getenv("API_SECRET")
 
-if not TELEGRAM_BOT_TOKEN or not API_KEY or not API_SECRET:
-    raise ValueError("Missing required environment variables!")
-
-# Binance exchange config (Testnet by default)
-USE_TESTNET = True  # Change to False to go live on mainnet
+# ===============================
+# EXCHANGE (CCXT)
+# ===============================
 exchange = ccxt.binance({
     "apiKey": API_KEY,
     "secret": API_SECRET,
-    "options": {"defaultType": "future"},
-    "urls": {"api": "https://testnet.binancefuture.com" if USE_TESTNET else None}
+    "enableRateLimit": True,
 })
 
-# --- Telegram command handlers ---
+# ===============================
+# /start COMMAND
+# ===============================
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.message.reply_text(
-        "🤖 Bot is live! Use /price BTC/USDT to check price.\n"
-        "Use /buy or /sell to simulate trades on Testnet."
+        "Bot is running!\n\n"
+        "Commands:\n"
+        "/price BTC/USDT\n"
+        "/buy BTC/USDT 10\n"
+        "/sell BTC/USDT 10"
     )
 
+# ===============================
+# /price COMMAND
+# ===============================
 async def price(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    symbol = (context.args[0] if context.args else "BTC/USDT").upper()
+    if len(context.args) < 1:
+        await update.message.reply_text("Usage: /price BTC/USDT")
+        return
+
+    symbol = context.args[0].upper()
+
     try:
         ticker = exchange.fetch_ticker(symbol)
+        await update.message.reply_text(f"{symbol} Price: {ticker['last']}")
+    except Exception as e:
+        await update.message.reply_text(f"Error: {str(e)}")
+
+# ===============================
+# /buy COMMAND
+# ===============================
+async def buy(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    if len(context.args) < 2:
+        await update.message.reply_text("Usage: /buy BTC/USDT 10")
+        return
+
+    symbol = context.args[0].upper()
+    amount = float(context.args[1])
+
+    try:
+        order = exchange.create_market_buy_order(symbol, amount)
+        await update.message.reply_text(f"Bought {amount} of {symbol}\n\n{order}")
+    except Exception as e:
+        await update.message.reply_text(f"Buy Failed: {str(e)}")
+
+# ===============================
+# /sell COMMAND
+# ===============================
+async def sell(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    if len(context.args) < 2:
+        await update.message.reply_text("Usage: /sell BTC/USDT 10")
+        return
+
+    symbol = context.args[0].upper()
+    amount = float(context.args[1])
+
+    try:
+        order = exchange.create_market_sell_order(symbol, amount)
+        await update.message.reply_text(f"Sold {amount} of {symbol}\n\n{order}")
+    except Exception as e:
+        await update.message.reply_text(f"Sell Failed: {str(e)}")
+
+# ===============================
+# MAIN
+# ===============================
+if __name__ == "__main__":
+    app = ApplicationBuilder().token(TELEGRAM_BOT_TOKEN).build()
+
+    app.add_handler(CommandHandler("start", start))
+    app.add_handler(CommandHandler("price", price))
+    app.add_handler(CommandHandler("buy", buy))
+    app.add_handler(CommandHandler("sell", sell))
+
+    print("Bot is running...")
+    app.run_polling()        ticker = exchange.fetch_ticker(symbol)
         await update.message.reply_text(f"💰 Price of {symbol}: {ticker['last']}")
     except Exception as e:
         await update.message.reply_text(f"Error fetching price: {e}")
