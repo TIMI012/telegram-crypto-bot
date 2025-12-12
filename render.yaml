@@ -1,8 +1,19 @@
-
 services:
   - type: web
-    name: telegram-crypto-bot
+    name: telegram-bot
     env: python
     plan: free
     buildCommand: pip install -r requirements.txt
     startCommand: python bot.py
+    autoDeploy: true
+    envVars:
+      - key: TELEGRAM_BOT_TOKEN
+        sync: false
+      - key: BINANCE_API_KEY
+        sync: false
+      - key: BINANCE_API_SECRET
+        sync: false
+    instanceType: micro
+    numInstances: 1
+    pullRequestPreviewsEnabled: false
+    healthCheckPath: /
