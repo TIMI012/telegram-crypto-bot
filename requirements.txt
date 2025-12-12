@@ -1,4 +1,5 @@
-
 python-telegram-bot==20.3
-ccxt
+ccxt==4.5.27
 numpy
+pandas
+aiohttp
