@@ -1,9 +1,14 @@
 import os
 import logging
-from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
-from telegram.ext import Application, CommandHandler, CallbackQueryHandler, ContextTypes
-import ccxt
 import asyncio
+import ccxt
+from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
+from telegram.ext import (
+    ApplicationBuilder,
+    CommandHandler,
+    CallbackQueryHandler,
+    ContextTypes,
+)
 
 logging.basicConfig(level=logging.INFO)
 
@@ -19,6 +24,8 @@ exchange = ccxt.binance({
 
 alert_subscribers = set()
 
+
+# ---------- START ----------
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     keyboard = [
         [InlineKeyboardButton("📈 Price", callback_data="price_menu")],
@@ -26,60 +33,12 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
         [InlineKeyboardButton("🔴 Sell BTC", callback_data="sell_btc")],
         [InlineKeyboardButton("💰 Balance", callback_data="balance")],
         [InlineKeyboardButton("📊 PnL", callback_data="pnl")],
-        [InlineKeyboardButton("⏰ Toggle Alerts", callback_data="toggle_alerts")]
+        [InlineKeyboardButton("⏰ Toggle Alerts", callback_data="toggle_alerts")],
     ]
-    await update.message.reply_text("Choose an option:", reply_markup=InlineKeyboardMarkup(keyboard))
-
-async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    query = update.callback_query
-    data = query.data
-    chat_id = query.message.chat_id
-
-    await query.answer()
-
-    if data == "toggle_alerts":
-        if chat_id in alert_subscribers:
-            alert_subscribers.remove(chat_id)
-            await query.edit_message_text("🔕 Alerts turned OFF")
-        else:
-            alert_subscribers.add(chat_id)
-            await query.edit_message_text("🔔 Alerts turned ON")
-        return
-
-    if data == "balance":
-        balance = exchange.fetch_balance()
-        usdt = balance['total'].get('USDT', 0)
-        await query.edit_message_text(f"💰 Balance: {usdt} USDT")
-        return
-
-async def run_alerts(app):
-    while True:
-        if alert_subscribers:
-            ticker = exchange.fetch_ticker("BTC/USDT")
-            price = ticker["last"]
-            for chat_id in list(alert_subscribers):
-                try:
-                    await app.bot.send_message(chat_id, f"⏰ BTC Price: {price}")
-                except:
-                    pass
-        await asyncio.sleep(3600)  # every 1 hour
-
-async def main():
-    app = Application.builder().token(TELEGRAM_BOT_TOKEN).build()
-
-    app.add_handler(CommandHandler("start", start))
-    app.add_handler(CallbackQueryHandler(button_handler))
-
-    # run alerts in background
-    app.job_queue.run_once(lambda *_: asyncio.create_task(run_alerts(app)), 1)
-
-    await app.run_polling(close_loop=False)
-
-if __name__ == "__main__":
-    asyncio.get_event_loop().create_task(main())
-    asyncio.get_event_loop().run_forever()        [InlineKeyboardButton("⏰ Toggle Alerts", callback_data="toggle_alerts")]
-    ]
-    await update.message.reply_text("Choose an option:", reply_markup=InlineKeyboardMarkup(keyboard))
+    await update.message.reply_text(
+        "Choose an option:",
+        reply_markup=InlineKeyboardMarkup(keyboard)
+    )
 
 
 # ---------- INLINE BUTTON HANDLER ----------
@@ -103,10 +62,10 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
             await query.edit_message_text(f"Sold BTC:\n{order}")
 
         elif data == "balance":
-            balance = exchange.fetch_balance()
-            usdt = balance["total"].get("USDT", 0)
-            btc = balance["total"].get("BTC", 0)
-            await query.edit_message_text(f"USDT: {usdt}\nBTC: {btc}")
+            b = exchange.fetch_balance()
+            usdt = b["total"].get("USDT", 0)
+            btc = b["total"].get("BTC", 0)
+            await query.edit_message_text(f"Balance:\nUSDT: {usdt}\nBTC: {btc}")
 
         elif data == "pnl":
             positions = exchange.fetch_positions()
@@ -151,7 +110,7 @@ async def pnl(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.message.reply_text(text)
 
 
-# ---------- BACKGROUND ALERTS ----------
+# ---------- BACKGROUND PRICE ALERTS ----------
 async def price_alert_job(app):
     while True:
         if alert_subscribers:
@@ -159,9 +118,9 @@ async def price_alert_job(app):
                 ticker = exchange.fetch_ticker("BTC/USDT")
                 price = ticker["last"]
                 for chat_id in alert_subscribers:
-                    await app.bot.send_message(chat_id, f"⏰ BTC Price Alert: {price}")
+                    await app.bot.send_message(chat_id, f"⏰ BTC Price: {price}")
             except Exception as e:
-                logging.error("Alert error: %s", e)
+                logging.error("Alert job error: %s", e)
 
         await asyncio.sleep(3600)  # every 1 hour
 
@@ -170,12 +129,14 @@ async def price_alert_job(app):
 async def main():
     app = ApplicationBuilder().token(TELEGRAM_BOT_TOKEN).build()
 
+    # handlers
     app.add_handler(CommandHandler("start", start))
     app.add_handler(CommandHandler("price", price))
     app.add_handler(CommandHandler("balance", balance))
     app.add_handler(CommandHandler("pnl", pnl))
     app.add_handler(CallbackQueryHandler(button_handler))
 
+    # background price alerts
     asyncio.create_task(price_alert_job(app))
 
     await app.run_polling()
