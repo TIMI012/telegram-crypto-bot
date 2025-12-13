@@ -1,5 +1,5 @@
 services:
-  - type: web
+  - type: worker
     name: telegram-bot
     env: python
     plan: free
@@ -9,7 +9,3 @@ services:
     envVars:
       - key: TELEGRAM_BOT_TOKEN
         sync: false
-    instanceType: micro
-    numInstances: 1
-    pullRequestPreviewsEnabled: false
-    healthCheckPath: /
